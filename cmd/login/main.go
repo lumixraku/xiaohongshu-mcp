@@ -14,7 +14,7 @@ import (
 func main() {
 
 	// 登录的时候，需要界面，所以不能无头模式
-	b := browser.NewBrowser(false)
+	b := browser.NewChromeVisibleBrowser()
 	defer b.Close()
 
 	page := b.NewPage()
