@@ -15,10 +15,10 @@ func main() {
 
 	// 登录的时候，需要界面，所以不能无头模式
 	b := browser.NewChromeVisibleBrowser()
-	defer b.Close()
+	// Browser will remain open - no Close() call
 
 	page := b.NewPage()
-	defer page.Close()
+	// Page will remain open - no Close() call
 
 	action := xiaohongshu.NewLogin(page)
 

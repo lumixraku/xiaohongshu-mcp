@@ -14,10 +14,10 @@ func TestSearch(t *testing.T) {
 	t.Skip("SKIP: 测试发布")
 
 	b := browser.NewBrowser(false)
-	defer b.Close()
+	// Browser will remain open - no Close() call
 
 	page := b.NewPage()
-	defer page.Close()
+	// Page will remain open - no Close() call
 
 	action := NewSearchAction(page)
 

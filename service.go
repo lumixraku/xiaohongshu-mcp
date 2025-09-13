@@ -50,10 +50,10 @@ type FeedsListResponse struct {
 // CheckLoginStatus 检查登录状态
 func (s *XiaohongshuService) CheckLoginStatus(ctx context.Context) (*LoginStatusResponse, error) {
 	b := browser.NewChromeVisibleBrowser()
-	defer b.Close()
+	// Browser will remain open - no Close() call
 
 	page := b.NewPage()
-	defer page.Close()
+	// Page will remain open - no Close() call
 
 	loginAction := xiaohongshu.NewLogin(page)
 
@@ -116,10 +116,10 @@ func (s *XiaohongshuService) processImages(images []string) ([]string, error) {
 // publishContent 执行内容发布
 func (s *XiaohongshuService) publishContent(ctx context.Context, content xiaohongshu.PublishImageContent) error {
 	b := browser.NewChromeVisibleBrowser()
-	defer b.Close()
+	// Browser will remain open - no Close() call
 
 	page := b.NewPage()
-	defer page.Close()
+	// Page will remain open - no Close() call
 
 	action, err := xiaohongshu.NewPublishImageAction(page)
 	if err != nil {
@@ -133,10 +133,10 @@ func (s *XiaohongshuService) publishContent(ctx context.Context, content xiaohon
 // ListFeeds 获取Feeds列表
 func (s *XiaohongshuService) ListFeeds(ctx context.Context) (*FeedsListResponse, error) {
 	b := browser.NewChromeVisibleBrowser()
-	defer b.Close()
+	// Browser will remain open - no Close() call
 
 	page := b.NewPage()
-	defer page.Close()
+	// Page will remain open - no Close() call
 
 	// 创建 Feeds 列表 action
 	action := xiaohongshu.NewFeedsListAction(page)
@@ -157,10 +157,10 @@ func (s *XiaohongshuService) ListFeeds(ctx context.Context) (*FeedsListResponse,
 
 func (s *XiaohongshuService) SearchFeeds(ctx context.Context, keyword string) (*FeedsListResponse, error) {
 	b := browser.NewChromeVisibleBrowser()
-	defer b.Close()
+	// Browser will remain open - no Close() call
 
 	page := b.NewPage()
-	defer page.Close()
+	// Page will remain open - no Close() call
 
 	action := xiaohongshu.NewSearchAction(page)
 
@@ -180,10 +180,10 @@ func (s *XiaohongshuService) SearchFeeds(ctx context.Context, keyword string) (*
 // GetFeedDetail 获取Feed详情
 func (s *XiaohongshuService) GetFeedDetail(ctx context.Context, feedID, xsecToken string) (*FeedDetailResponse, error) {
 	b := browser.NewChromeVisibleBrowser()
-	defer b.Close()
+	// Browser will remain open - no Close() call
 
 	page := b.NewPage()
-	defer page.Close()
+	// Page will remain open - no Close() call
 
 	// 创建 Feed 详情 action
 	action := xiaohongshu.NewFeedDetailAction(page)
@@ -205,10 +205,10 @@ func (s *XiaohongshuService) GetFeedDetail(ctx context.Context, feedID, xsecToke
 func (s *XiaohongshuService) PostCommentToFeed(ctx context.Context, feedID, xsecToken, content string) (*PostCommentResponse, error) {
 	// 使用非无头模式以便查看操作过程
 	b := browser.NewChromeVisibleBrowser()
-	defer b.Close()
+	// Browser will remain open - no Close() call
 
 	page := b.NewPage()
-	defer page.Close()
+	// Page will remain open - no Close() call
 
 	// 创建 Feed 评论 action
 	action := xiaohongshu.NewCommentFeedAction(page)
