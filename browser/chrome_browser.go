@@ -2,8 +2,11 @@ package browser
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
@@ -21,42 +24,21 @@ type ChromeBrowser struct {
 
 // NewChromeBrowser creates a new Chrome browser instance
 func NewChromeBrowser(headless bool) *ChromeBrowser {
-	// Find Chrome path
-	chromePath := findChromePath()
-	if chromePath == "" {
-		logrus.Fatal("System Chrome not found")
+	// Connect to existing Chrome instance - user's current Chrome with current profile
+	browser, err := connectToExistingChrome()
+	if err != nil {
+		logrus.Fatal("Cannot connect to your current Chrome. Please enable remote debugging:\n" +
+			"1. Close Chrome completely\n" +
+			"2. Start Chrome with: open -a 'Google Chrome' --args --remote-debugging-port=9222\n" +
+			"3. Then run this program again")
 		return nil
 	}
 
-	logrus.Infof("Starting Chrome from: %s", chromePath)
-
-	// Create launcher with system Chrome using automation profile to avoid conflicts
-	userDataDir := getAutomationChromeDataDir()
+	logrus.Info("Connected to your current Chrome - will create new tab with your current profile")
 	
-	// Copy user cookies to automation profile if they exist
-	copyUserCookiesToAutomation(userDataDir)
-	
-	l := launcher.New().
-		Bin(chromePath).
-		Headless(headless).
-		UserDataDir(userDataDir).
-		Set("--no-sandbox").
-		Set("--disable-features", "VizDisplayCompositor").
-		Set("--remote-debugging-port", "0")
-
-	// Launch Chrome
-	url := l.MustLaunch()
-	logrus.Infof("Chrome launched at: %s", url)
-
-	// Connect to Chrome
-	browser := rod.New().ControlURL(url).MustConnect()
-
-	// Load cookies if available
-	loadCookiesForBrowser(browser)
-
 	return &ChromeBrowser{
 		browser:  browser,
-		launcher: l,
+		launcher: nil,
 	}
 }
 
@@ -69,6 +51,34 @@ func (cb *ChromeBrowser) Close() {
 // NewPage creates a new page with stealth mode enabled
 func (cb *ChromeBrowser) NewPage() *rod.Page {
 	return stealth.MustPage(cb.browser)
+}
+
+// connectToExistingChrome tries to connect to an existing Chrome instance
+func connectToExistingChrome() (*rod.Browser, error) {
+	// Try common Chrome debugging ports
+	ports := []string{"9222", "9223", "9224"}
+
+	for _, port := range ports {
+		url := fmt.Sprintf("http://localhost:%s", port)
+		client := &http.Client{Timeout: 2 * time.Second}
+
+		// Check if Chrome is running on this port
+		resp, err := client.Get(url + "/json/version")
+		if err != nil {
+			continue
+		}
+		resp.Body.Close()
+
+		if resp.StatusCode == 200 {
+			// Try to connect
+			browser := rod.New().ControlURL(url)
+			if err := browser.Connect(); err == nil {
+				return browser, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no existing Chrome instance found")
 }
 
 // loadCookiesForBrowser loads cookies for the browser
@@ -87,19 +97,19 @@ func loadCookiesForBrowser(browser *rod.Browser) {
 	}
 }
 
-// getUserChromeDataDir returns the path to the user's Chrome data directory
+// getUserChromeDataDir returns the path to the user's Chrome default profile directory
 func getUserChromeDataDir() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		logrus.Warnf("Failed to get user home directory: %v", err)
 		return ""
 	}
-	
-	// macOS Chrome user data directory
-	chromeDataDir := filepath.Join(homeDir, "Library", "Application Support", "Google", "Chrome")
-	
-	logrus.Infof("Using Chrome user data directory: %s", chromeDataDir)
-	return chromeDataDir
+
+	// macOS Chrome default profile directory
+	chromeProfileDir := filepath.Join(homeDir, "Library", "Application Support", "Google", "Chrome", "Default")
+
+	logrus.Infof("Using Chrome default profile directory: %s", chromeProfileDir)
+	return chromeProfileDir
 }
 
 // getAutomationChromeDataDir returns a separate Chrome data directory for automation
@@ -109,15 +119,15 @@ func getAutomationChromeDataDir() string {
 		logrus.Warnf("Failed to get user home directory: %v", err)
 		return ""
 	}
-	
+
 	// Create a separate Chrome profile for automation to avoid conflicts
 	chromeDataDir := filepath.Join(homeDir, "Library", "Application Support", "Google", "Chrome-Automation")
-	
+
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(chromeDataDir, 0755); err != nil {
 		logrus.Warnf("Failed to create Chrome automation directory: %v", err)
 	}
-	
+
 	logrus.Infof("Using Chrome automation data directory: %s", chromeDataDir)
 	return chromeDataDir
 }
@@ -128,19 +138,19 @@ func copyUserCookiesToAutomation(automationDir string) {
 	userCookiesPath := filepath.Join(userChromeDir, "Default", "Cookies")
 	automationCookiesDir := filepath.Join(automationDir, "Default")
 	automationCookiesPath := filepath.Join(automationCookiesDir, "Cookies")
-	
+
 	// Create Default directory in automation profile
 	if err := os.MkdirAll(automationCookiesDir, 0755); err != nil {
 		logrus.Warnf("Failed to create automation Default directory: %v", err)
 		return
 	}
-	
+
 	// Check if user cookies file exists
 	if _, err := os.Stat(userCookiesPath); os.IsNotExist(err) {
 		logrus.Info("No user cookies file found to copy")
 		return
 	}
-	
+
 	// Copy cookies file
 	if err := copyFile(userCookiesPath, automationCookiesPath); err != nil {
 		logrus.Warnf("Failed to copy user cookies: %v", err)
@@ -156,13 +166,13 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	defer sourceFile.Close()
-	
+
 	destFile, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
 	defer destFile.Close()
-	
+
 	_, err = destFile.ReadFrom(sourceFile)
 	return err
 }
